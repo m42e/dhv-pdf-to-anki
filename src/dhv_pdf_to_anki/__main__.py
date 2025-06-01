@@ -12,7 +12,6 @@ This script executes the pipeline in the following order:
 import os
 import pathlib
 import sys
-from pathlib import Path
 import json
 import argparse
 
