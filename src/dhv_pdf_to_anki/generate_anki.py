@@ -266,18 +266,35 @@ for (var i = 0; i < shuffledAnswers.length; i++) {
 
 document.getElementById("answers-back").innerHTML = buf;
 
-// Show result information
+// Show result information with clickable messages
 var resultInfo = "";
 if (selectedAnswer) {
     if (isCorrect) {
-        resultInfo = '<div class="result-message success">✓ Correct! Well done.</div>';
+        resultInfo = '<div class="result-message success clickable-message" onclick="rateGood()" title="Click to rate as Good">✓ Correct! Well done. Click to continue.</div>';
     } else {
         var correctLabels = correctAnswers.join(", ");
-        resultInfo = '<div class="result-message error">✗ Incorrect. You selected: ' + selectedAnswer + 
-                    '. Correct answer(s): ' + correctLabels + '</div>';
+        resultInfo = '<div class="result-message error clickable-message" onclick="rateAgain()" title="Click to rate as Again">✗ Incorrect. You selected: ' + selectedAnswer + 
+                    '. Correct answer(s): ' + correctLabels + '. Click to continue.</div>';
     }
 } else {
-    resultInfo = '<div class="result-message neutral">No answer was selected.</div>';
+    resultInfo = '<div class="result-message neutral clickable-message" onclick="rateAgain()" title="Click to rate as Again">No answer was selected. Click to continue.</div>';
+}
+
+// Functions to handle Anki ratings
+function rateAgain() {
+    pycmd("ease1");
+}
+
+function rateHard() {
+    pycmd("ease2");
+}
+
+function rateGood() {
+    pycmd("ease3");
+}
+
+function rateEasy() {
+    pycmd("ease4");
 }
 
 document.getElementById("result-info").innerHTML = resultInfo;
@@ -439,6 +456,82 @@ document.getElementById("result-info").innerHTML = resultInfo;
     background-color: var(--canvas-inset);
     color: var(--text-fg-faint);
     border: 1px solid var(--border);
+}
+
+.clickable-message {
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.1s;
+}
+
+.clickable-message:hover {
+    background-color: var(--canvas-code);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.rating-buttons {
+    margin-top: 15px;
+    text-align: center;
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.rating-btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.1s;
+    min-width: 100px;
+    font-size: 14px;
+}
+
+.rating-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.rating-btn:active {
+    transform: translateY(0);
+}
+
+.again-btn {
+    background-color: var(--flag-red, #f44336);
+    color: white;
+}
+
+.again-btn:hover {
+    background-color: #d32f2f;
+}
+
+.hard-btn {
+    background-color: #ff9800;
+    color: white;
+}
+
+.hard-btn:hover {
+    background-color: #f57c00;
+}
+
+.good-btn {
+    background-color: var(--flag-green, #4CAF50);
+    color: white;
+}
+
+.good-btn:hover {
+    background-color: #388e3c;
+}
+
+.easy-btn {
+    background-color: #2196f3;
+    color: white;
+}
+
+.easy-btn:hover {
+    background-color: #1976d2;
 }
 
 .correct-answers {
@@ -649,11 +742,11 @@ def generate_anki_deck(questions_json_paths: Union[str, List[str]], output_path:
 
 def main():
     """Main function to generate the Anki deck."""
-    current_dir = Path(__file__).parent
-    questions_file = current_dir / "questions.json"
-    additional_questions_file = current_dir / "extended_questions.json"
+    current_dir = Path(__file__).parent.parent.parent  # Go up to project root
+    questions_file = current_dir / "output" / "questions.json"
+    additional_questions_file = current_dir / "output" / "extended_questions.json"
     images_dir = current_dir / "images"
-    output_file = current_dir / "paragliding_questions.apkg"
+    output_file = current_dir / "output" / "paragliding_questions_with_ratings.apkg"
     
     if not questions_file.exists():
         print(f"Error: Questions file not found: {questions_file}")
@@ -665,7 +758,7 @@ def main():
         images_dir = None
     
     generate_anki_deck(
-        [str(questions_file), str(additional_questions_file)],
+        [str(questions_file), str(additional_questions_file)] if additional_questions_file.exists() else [str(questions_file)],
         str(output_file),
         str(images_dir) if images_dir else "images"
     )
