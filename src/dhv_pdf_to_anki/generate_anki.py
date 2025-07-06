@@ -18,31 +18,37 @@ import hashlib
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Union
 
-# Define custom note model for paragliding questdef main() -> None:
-PARAGLIDING_MODEL = genanki.Model(
-    1607392319,  # Unique model ID
-    'Paragliding Question Model',
-    fields=[
-        {'name': 'QuestionID'},
-        {'name': 'Section'},
-        {'name': 'Subsection'},
-        {'name': 'Question'},
-        {'name': 'AnswerA'},
-        {'name': 'AnswerB'},
-        {'name': 'AnswerC'},
-        {'name': 'AnswerD'},
-        {'name': 'CorrectAnswers'},
-        {'name': 'Image'},
-    ],
-    templates=[
-        {
-            'name': 'Paragliding Question',
-            'qfmt': '''
+# Language translations
+TRANSLATIONS = {
+    'en': {
+        'toggle_flag': 'Toggle blue flag',
+        'correct_well_done': '✓ Correct! Well done. Click to continue.',
+        'incorrect_selected': '✗ Incorrect. You selected: {selected}. Correct answer(s): {correct}. Click to continue.',
+        'no_answer_selected': 'No answer was selected. Click to continue.',
+        'click_rate_good': 'Click to rate as Good',
+        'click_rate_again': 'Click to rate as Again',
+    },
+    'de': {
+        'toggle_flag': 'Blaue Flagge umschalten',
+        'correct_well_done': '✓ Richtig! Gut gemacht. Klicken zum Fortfahren.',
+        'incorrect_selected': '✗ Falsch. Deine Auswahl: {selected}. Richtige Antwort: {correct}. Klicken zum Fortfahren.',
+        'no_answer_selected': 'Keine Antwort wurde ausgewählt. Klicken zum Fortfahren.',
+        'click_rate_good': 'Klicken für Bewertung "Gut"',
+        'click_rate_again': 'Klicken für Bewertung "Nochmal"',
+    }
+}
+
+# Define custom note model for paragliding questions
+def create_paragliding_model(language: str = 'en') -> genanki.Model:
+    """Create the paragliding model with language-specific text."""
+    t = TRANSLATIONS.get(language, TRANSLATIONS['en'])  # Fallback to English
+    
+    # Front template with language-specific text
+    qfmt_template = '''
 <div class="question-container">
     <div class="meta-info">
         <div class="section">{{Section}}</div>
         <div class="subsection">{{Subsection}}</div>
-        <button class="flag-button" onclick="toggleFlag()" title="Toggle blue flag">🏳️</button>
     </div>
     
     <div class="question">
@@ -112,6 +118,32 @@ function seededShuffle(array, seed) {
 
 var shuffledAnswers = seededShuffle([...originalAnswers], seed);
 
+// Platform detection for mobile compatibility
+function detectAnkiPlatform() {
+    if (typeof pycmd !== "undefined") {
+        return "AnkiDesktop";
+    } else if (window.anki && window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.cb !== undefined) {
+        return "AnkiMobile";
+    }
+    return "Unknown";
+}
+
+// Cross-platform command execution
+function executeAnkiCommand(command) {
+    var platform = detectAnkiPlatform();
+    
+    if (platform === "AnkiDesktop") {
+        pycmd(command);
+    } else if (platform === "AnkiMobile") {
+        if (command === "ans") {
+            window.webkit.messageHandlers.cb.postMessage(JSON.stringify({
+                scheme: "ankitap",
+                msg: "topCenter"
+            }));
+        }
+    }
+}
+
 // Function to handle answer selection
 function selectAnswer(label) {
     selectedAnswer = label;
@@ -120,37 +152,32 @@ function selectAnswer(label) {
         sessionStorage.setItem("selectedAnswer_" + questionId, label);
     }
     // Show the answer by flipping the card
-    pycmd("ans");
-}
-
-// Function to toggle flag
-function toggleFlag() {
-    pycmd("toggleflag Blue");
+    executeAnkiCommand("ans");
 }
 
 // Generate HTML for shuffled answers with click handlers
 var buf = "";
 for (var i = 0; i < shuffledAnswers.length; i++) {
     if (shuffledAnswers[i].text.trim()) { // Only show non-empty answers
-        buf += '<div class="answer clickable" onclick="selectAnswer(\\'' + shuffledAnswers[i].label + '\\')">' + 
-               '<span class="answer-label">' + shuffledAnswers[i].label + ':</span> ' + 
+        buf += '<div class="answer clickable" onclick="selectAnswer(\\'' + shuffledAnswers[i].label + '\\')" ontouchend="selectAnswer(\\'' + shuffledAnswers[i].label + '\\')">' + 
                shuffledAnswers[i].text + '</div>';
     }
 }
 
 document.getElementById("answers").innerHTML = buf;
 </script>
-            ''',
-            'afmt': '''
+'''
+
+    # Back template with language-specific text
+    afmt_template = '''
 <div class="question-container">
     <div class="meta-info">
-        <div class="section">{{Section}}</div>
-        <div class="subsection">{{Subsection}}</div>
-        <button class="flag-button" onclick="toggleFlag()" title="Toggle blue flag">🏳️</button>
+        <div class="section">{{{{Section}}}}</div>
+        <div class="subsection">{{{{Subsection}}}}</div>
     </div>
     
     <div class="question">
-        <h3>{{Question}}</h3>
+        <h3>{{{{Question}}}}</h3>
     </div>
     
     <div class="answers" id="answers-back">
@@ -161,31 +188,31 @@ document.getElementById("answers").innerHTML = buf;
         <!-- Result information will be shown here -->
     </div>
 
-    {{#Image}}
+    {{{{#Image}}}}
     <div class="image-container">
-       {{Image}}
+       {{{{Image}}}}
     </div>
-    {{/Image}}
+    {{{{/Image}}}}
     
 </div>
 
 <script>
 // Recreate the same shuffled order as front (using same seed approach)
 var originalAnswers = [
-    { label: 'A', text: "{{AnswerA}}" },
-    { label: 'B', text: "{{AnswerB}}" },
-    { label: 'C', text: "{{AnswerC}}" },
-    { label: 'D', text: "{{AnswerD}}" }
+    {{ label: 'A', text: "{{{{AnswerA}}}}" }},
+    {{ label: 'B', text: "{{{{AnswerB}}}}" }},
+    {{ label: 'C', text: "{{{{AnswerC}}}}" }},
+    {{ label: 'D', text: "{{{{AnswerD}}}}" }}
 ];
 
-var correctAnswers = "{{CorrectAnswers}}".split(", ");
-var questionId = "{{QuestionID}}";
+var correctAnswers = "{{{{CorrectAnswers}}}}".split(", ");
+var questionId = "{{{{QuestionID}}}}";
 
 // Get the selected answer from session storage
 var selectedAnswer = "";
-if (typeof(Storage) !== "undefined") {
+if (typeof(Storage) !== "undefined") {{
     selectedAnswer = sessionStorage.getItem("selectedAnswer_" + questionId) || "";
-}
+}}
 
 // Generate the same date-based seed as used in the front template
 var today = new Date();
@@ -194,22 +221,22 @@ var seed = 0;
 
 // Create seed from date string and question ID
 var combinedString = dateString + questionId;
-for (var i = 0; i < combinedString.length; i++) {
+for (var i = 0; i < combinedString.length; i++) {{
     seed = ((seed << 5) - seed + combinedString.charCodeAt(i)) & 0xffffffff;
-}
+}}
 
 // Seeded random function
-function seededRandom(seed) {
+function seededRandom(seed) {{
     var x = Math.sin(seed) * 10000;
     return x - Math.floor(x);
-}
+}}
 
 // Seeded shuffle function
-function seededShuffle(array, seed) {
+function seededShuffle(array, seed) {{
     var currentIndex = array.length, temporaryValue, randomIndex;
     var currentSeed = seed;
     
-    while (0 !== currentIndex) {
+    while (0 !== currentIndex) {{
         currentSeed = (currentSeed * 9301 + 49297) % 233280;
         randomIndex = Math.floor(seededRandom(currentSeed) * currentIndex);
         currentIndex -= 1;
@@ -217,15 +244,36 @@ function seededShuffle(array, seed) {
         temporaryValue = array[currentIndex];
         array[currentIndex] = array[randomIndex];
         array[randomIndex] = temporaryValue;
-    }
+    }}
     
     return array;
-}
+}}
 
-// Function to toggle flag
-function toggleFlag() {
-    pycmd("toggleflag Blue");
-}
+// Platform detection for mobile compatibility
+function detectAnkiPlatform() {{
+    if (typeof pycmd !== "undefined") {{
+        return "AnkiDesktop";
+    }} else if (window.anki && window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.cb !== undefined) {{
+        return "AnkiMobile";
+    }}
+    return "Unknown";
+}}
+
+// Cross-platform command execution
+function executeAnkiCommand(command) {{
+    var platform = detectAnkiPlatform();
+    
+    if (platform === "AnkiDesktop") {{
+        pycmd(command);
+    }} else if (platform === "AnkiMobile") {{
+        if (command === "ans") {{
+            window.webkit.messageHandlers.cb.postMessage(JSON.stringify({{
+                scheme: "ankitap",
+                msg: "topCenter"
+            }}));
+        }}
+    }}
+}}
 
 var shuffledAnswers = seededShuffle([...originalAnswers], seed);
 
@@ -234,8 +282,8 @@ var isCorrect = selectedAnswer && correctAnswers.indexOf(selectedAnswer) !== -1;
 
 // Generate HTML for answers with highlighting
 var buf = "";
-for (var i = 0; i < shuffledAnswers.length; i++) {
-    if (shuffledAnswers[i].text.trim()) {
+for (var i = 0; i < shuffledAnswers.length; i++) {{
+    if (shuffledAnswers[i].text.trim()) {{
         var answerText = shuffledAnswers[i].text;
         var answerLabel = shuffledAnswers[i].label;
         var isCorrectAnswer = correctAnswers.indexOf(answerLabel) !== -1;
@@ -244,65 +292,93 @@ for (var i = 0; i < shuffledAnswers.length; i++) {
         var cssClass = "answer";
         var labelPrefix = answerLabel + ": ";
         
-        if (isCorrectAnswer && isSelectedAnswer) {
+        if (isCorrectAnswer && isSelectedAnswer) {{
             // Correct answer and selected - green
             cssClass += " correct-answer selected-answer";
             labelPrefix = "✓ " + labelPrefix;
-        } else if (isCorrectAnswer) {
+        }} else if (isCorrectAnswer) {{
             // Correct answer but not selected - green
             cssClass += " correct-answer";
             labelPrefix = "✓ " + labelPrefix;
-        } else if (isSelectedAnswer) {
+        }} else if (isSelectedAnswer) {{
             // Selected but wrong - red
             cssClass += " wrong-answer selected-answer";
             labelPrefix = "✗ " + labelPrefix;
-        }
+        }}
         
         buf += '<div class="' + cssClass + '">' + 
-               '<span class="answer-label">' + labelPrefix + '</span>' + 
                answerText + '</div>';
-    }
-}
+    }}
+}}
 
 document.getElementById("answers-back").innerHTML = buf;
 
 // Show result information with clickable messages
 var resultInfo = "";
-if (selectedAnswer) {
-    if (isCorrect) {
-        resultInfo = '<div class="result-message success clickable-message" onclick="rateGood()" title="Click to rate as Good">✓ Correct! Well done. Click to continue.</div>';
-    } else {
+if (selectedAnswer) {{
+    if (isCorrect) {{
+        resultInfo = '<div class="result-message success clickable-message" onclick="rateGood()" title="{click_rate_good}">{correct_well_done}</div>';
+    }} else {{
         var correctLabels = correctAnswers.join(", ");
-        resultInfo = '<div class="result-message error clickable-message" onclick="rateAgain()" title="Click to rate as Again">✗ Incorrect. You selected: ' + selectedAnswer + 
-                    '. Correct answer(s): ' + correctLabels + '. Click to continue.</div>';
-    }
-} else {
-    resultInfo = '<div class="result-message neutral clickable-message" onclick="rateAgain()" title="Click to rate as Again">No answer was selected. Click to continue.</div>';
-}
+        resultInfo = '<div class="result-message error clickable-message" onclick="rateAgain()" title="{click_rate_again}">' +
+                    '{incorrect_start}' + selectedAnswer + '{incorrect_middle}' + correctLabels + '{incorrect_end}</div>';
+    }}
+}} else {{
+    resultInfo = '<div class="result-message neutral clickable-message" onclick="rateAgain()" title="{click_rate_again}">{no_answer_selected}</div>';
+}}
 
 // Functions to handle Anki ratings
-function rateAgain() {
-    pycmd("ease1");
-}
+function rateAgain() {{
+    //executeAnkiCommand("ease1");
+}}
 
-function rateHard() {
-    pycmd("ease2");
-}
+function rateHard() {{
+    executeAnkiCommand("ease2");
+}}
 
-function rateGood() {
-    pycmd("ease3");
-}
+function rateGood() {{
+    //executeAnkiCommand("ease3");
+}}
 
-function rateEasy() {
-    pycmd("ease4");
-}
+function rateEasy() {{
+    executeAnkiCommand("ease4");
+}}
 
 document.getElementById("result-info").innerHTML = resultInfo;
 </script>
-            ''',
-        },
-    ],
-    css='''
+'''.format(
+        click_rate_good=t['click_rate_good'],
+        correct_well_done=t['correct_well_done'],
+        click_rate_again=t['click_rate_again'],
+        incorrect_start='✗ Falsch. Sie haben gewählt: ' if language == 'de' else '✗ Incorrect. You selected: ',
+        incorrect_middle='. Richtige Antwort(en): ' if language == 'de' else '. Correct answer(s): ',
+        incorrect_end='. Klicken zum Fortfahren.' if language == 'de' else '. Click to continue.',
+        no_answer_selected=t['no_answer_selected']
+    )
+
+    return genanki.Model(
+        1607392319,  # Unique model ID
+        'Paragliding Question Model',
+        fields=[
+            {'name': 'QuestionID'},
+            {'name': 'Section'},
+            {'name': 'Subsection'},
+            {'name': 'Question'},
+            {'name': 'AnswerA'},
+            {'name': 'AnswerB'},
+            {'name': 'AnswerC'},
+            {'name': 'AnswerD'},
+            {'name': 'CorrectAnswers'},
+            {'name': 'Image'},
+        ],
+        templates=[
+            {
+                'name': 'Paragliding Question',
+                'qfmt': qfmt_template,
+                'afmt': afmt_template,
+            },
+        ],
+        css='''
 .card {
     font-family: arial;
     font-size: 14px;
@@ -326,24 +402,6 @@ document.getElementById("result-info").innerHTML = resultInfo;
     border-radius: 5px;
     font-size: 12px;
     border: 1px solid var(--border);
-    position: relative;
-}
-
-.flag-button {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    background: none;
-    border: none;
-    font-size: 16px;
-    cursor: pointer;
-    padding: 5px;
-    border-radius: 3px;
-    transition: background-color 0.2s;
-}
-
-.flag-button:hover {
-    background-color: var(--border);
 }
 
 .section {
@@ -400,11 +458,29 @@ document.getElementById("result-info").innerHTML = resultInfo;
 .answer.clickable {
     cursor: pointer;
     transition: background-color 0.2s, border-color 0.2s;
+    user-select: none; /* Prevent text selection on mobile */
+    -webkit-tap-highlight-color: transparent; /* Remove iOS tap highlight */
+    touch-action: manipulation; /* Optimize touch interactions */
 }
 
 .answer.clickable:hover {
     background-color: var(--canvas-code);
     border-left-color: var(--accent-fg);
+}
+
+/* Mobile touch feedback */
+.answer.clickable:active {
+    background-color: var(--canvas-code);
+    border-left-color: var(--accent-fg);
+    transform: scale(0.98);
+}
+
+@media (hover: none) {
+    /* For touch devices, remove hover effects and rely on active state */
+    .answer.clickable:hover {
+        background-color: var(--canvas-inset);
+        border-left-color: var(--border);
+    }
 }
 
 .answer-label {
@@ -461,12 +537,31 @@ document.getElementById("result-info").innerHTML = resultInfo;
 .clickable-message {
     cursor: pointer;
     transition: background-color 0.2s, transform 0.1s;
+    user-select: none; /* Prevent text selection on mobile */
+    -webkit-tap-highlight-color: transparent; /* Remove iOS tap highlight */
+    touch-action: manipulation; /* Optimize touch interactions */
 }
 
 .clickable-message:hover {
     background-color: var(--canvas-code);
     transform: translateY(-1px);
     box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+/* Mobile touch feedback for clickable messages */
+.clickable-message:active {
+    background-color: var(--canvas-code);
+    transform: translateY(0);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+@media (hover: none) {
+    /* For touch devices, adjust hover effects */
+    .clickable-message:hover {
+        background-color: inherit;
+        transform: none;
+        box-shadow: none;
+    }
 }
 
 .rating-buttons {
@@ -595,8 +690,8 @@ document.getElementById("result-info").innerHTML = resultInfo;
     background-color: var(--canvas);
     color: var(--text-fg);
 }
-    '''
-)
+'''
+    )
 
 def load_questions(json_path: str) -> List[Dict[str, Any]]:
     """Load questions from JSON file."""
@@ -633,7 +728,7 @@ def create_note_id(question_data: Dict[str, Any]) -> int:
     content = f"{question_data['section_id']:03d}{question_data['subsection_id']:03d}{int(question_data['id']):03d}"
     return int(hashlib.md5(content.encode('utf-8')).hexdigest()[:8], 16)
 
-def create_anki_note(question_data: Dict[str, Any], images_dir: str, media_files: List[str]) -> genanki.Note:
+def create_anki_note(question_data: Dict[str, Any], images_dir: str, media_files: List[str], model: genanki.Model) -> genanki.Note:
     """Create an Anki note from question data."""
     # Get image if referenced
     image_filename = None
@@ -661,7 +756,7 @@ def create_anki_note(question_data: Dict[str, Any], images_dir: str, media_files
     
     # Create the note
     note = genanki.Note(
-        model=PARAGLIDING_MODEL,
+        model=model,
         fields=[
             id,
             question_data.get('section', ''),
@@ -680,7 +775,7 @@ def create_anki_note(question_data: Dict[str, Any], images_dir: str, media_files
     
     return note
 
-def generate_anki_deck(questions_json_paths: Union[str, List[str]], output_path: str, deckname: str= "DHV Lernmaterial Fragen", images_dir: str = "images") -> None:
+def generate_anki_deck(questions_json_paths: Union[str, List[str]], output_path: str, deckname: str = "DHV Lernmaterial Fragen", images_dir: str = "images", language: str = "de") -> None:
     """Generate Anki deck from questions JSON files."""
     # Ensure questions_json_paths is a list
     if isinstance(questions_json_paths, str):
@@ -701,6 +796,9 @@ def generate_anki_deck(questions_json_paths: Union[str, List[str]], output_path:
     
     print(f"Total questions loaded: {len(all_questions)}")
     
+    # Create model with specified language
+    model = create_paragliding_model(language)
+    
     # Create deck
     deck = genanki.Deck(
         2059420112,  # Unique deck ID
@@ -716,7 +814,7 @@ def generate_anki_deck(questions_json_paths: Union[str, List[str]], output_path:
         if not question.get('question') or not question.get('answers'):
             continue
             
-        note = create_anki_note(question, images_dir, media_files)
+        note = create_anki_note(question, images_dir, media_files, model)
         deck.add_note(note)
         notes_created += 1
         

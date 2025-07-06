@@ -34,6 +34,7 @@ def parse_args():
     parser.add_argument("--image-pdf", type=str, default="Bilder.pdf", help="Name of the PDF file containing images.")
     parser.add_argument("--questions-pdf", type=str, default="Lernstoff.pdf", help="Name of the PDF file containing questions.")
     parser.add_argument("--image-dir", type=str, default="images/", help="Directory to save extracted images.")
+    parser.add_argument("--language", type=str, choices=["en", "de"], default="de", help="Language for Anki card interface text (en=English, de=German)")
     # Add any future arguments here if needed
     return parser.parse_args()
 
@@ -139,7 +140,7 @@ def main() -> None:
         
         filename = args.anki_deck_name.replace(" ", "_").replace("/", "_") + ".apkg"
 
-        generate_anki_deck(question_files, pathlib.Path(args.output_dir) / filename, deckname=args.anki_deck_name, images_dir=args.image_dir)
+        generate_anki_deck(question_files, pathlib.Path(args.output_dir) / filename, deckname=args.anki_deck_name, images_dir=args.image_dir, language=args.language)
         
         print("\n" + "="*80)
         print("✓ Pipeline completed successfully!")
