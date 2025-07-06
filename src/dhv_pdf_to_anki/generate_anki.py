@@ -188,6 +188,17 @@ document.getElementById("answers").innerHTML = buf;
         <!-- Result information will be shown here -->
     </div>
 
+    {{{{#QuestionImage}}}}
+    <div class="question-image-toggle">
+        <button onclick="toggleQuestionImage()" class="toggle-image-btn" id="toggle-btn">
+            📸 Zeige Frage als Bild
+        </button>
+    </div>
+    <div class="question-image-container" id="question-image-container" style="display: none;">
+       {{{{QuestionImage}}}}
+    </div>
+    {{{{/QuestionImage}}}}
+
     {{{{#Image}}}}
     <div class="image-container">
        {{{{Image}}}}
@@ -344,6 +355,22 @@ function rateEasy() {{
     executeAnkiCommand("ease4");
 }}
 
+// Function to toggle question image visibility
+function toggleQuestionImage() {{
+    var container = document.getElementById("question-image-container");
+    var button = document.getElementById("toggle-btn");
+    
+    if (container.style.display === "none") {{
+        container.style.display = "block";
+        button.innerHTML = "🚫 Verstecke Frage als Bild";
+        button.title = "Verstecke die Frage als Bild";
+    }} else {{
+        container.style.display = "none";
+        button.innerHTML = "📸 Zeige Frage als Bild";
+        button.title = "Zeige die Frage als Bild";
+    }}
+}}
+
 document.getElementById("result-info").innerHTML = resultInfo;
 </script>
 '''.format(
@@ -370,6 +397,9 @@ document.getElementById("result-info").innerHTML = resultInfo;
             {'name': 'AnswerD'},
             {'name': 'CorrectAnswers'},
             {'name': 'Image'},
+            {'name': 'QuestionImage'},
+            {'name': 'ImageId'},
+            {'name': 'PageNumber'},
         ],
         templates=[
             {
@@ -439,6 +469,50 @@ document.getElementById("result-info").innerHTML = resultInfo;
     max-width: 100%;
     height: auto;
     border-radius: 5px;
+}
+
+.question-image-toggle {
+    text-align: center;
+    margin: 15px 0;
+}
+
+.toggle-image-btn {
+    background-color: var(--accent-fg, #2c5aa0);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background-color 0.2s, transform 0.1s;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+
+.toggle-image-btn:hover {
+    background-color: var(--accent-fg, #1e4a8c);
+    transform: translateY(-1px);
+}
+
+.toggle-image-btn:active {
+    transform: translateY(0);
+}
+
+.question-image-container {
+    text-align: center;
+    margin: 15px 0;
+    padding: 10px;
+    background-color: var(--canvas-inset);
+    border-radius: 5px;
+    border: 1px solid var(--border);
+}
+
+.question-image-container img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 5px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
 .answers {
@@ -730,7 +804,7 @@ def create_note_id(question_data: Dict[str, Any]) -> int:
 
 def create_anki_note(question_data: Dict[str, Any], images_dir: str, media_files: List[str], model: genanki.Model) -> genanki.Note:
     """Create an Anki note from question data."""
-    # Get image if referenced
+    # Get image if referenced (Abbildung image)
     image_filename = None
     
     if question_data.get('abbildung'):
@@ -738,6 +812,20 @@ def create_anki_note(question_data: Dict[str, Any], images_dir: str, media_files
         if image_path:
             image_filename = os.path.basename(image_path)
             media_files.append(image_path)
+    
+    # Get question image from image_path field
+    question_image_filename = None
+    
+    if question_data.get('image_path'):
+        # The image_path is relative to the project root
+        current_dir = Path(__file__).parent.parent.parent  # Go up to project root
+        question_image_path = current_dir / question_data['image_path']
+        
+        if question_image_path.exists():
+            question_image_filename = os.path.basename(str(question_image_path))
+            media_files.append(str(question_image_path))
+        else:
+            print(f"Warning: Question image not found: {question_image_path}")
     
     # Format correct answers
     correct_answers = ", ".join(question_data.get('correct', []))
@@ -768,6 +856,9 @@ def create_anki_note(question_data: Dict[str, Any], images_dir: str, media_files
             question_data.get('answers', {}).get('D', '').replace('"', '&quot;'),
             correct_answers,
             f'<img src="{image_filename}">' if image_filename else '',
+            f'<img src="{question_image_filename}" alt="Question as image">' if question_image_filename else '',
+            str(question_data.get('abbildung', '')),
+            str(question_data.get('page_number', '')),
         ],
         guid=create_note_id(question_data),
         tags=[tag for tag in tags if tag],  
@@ -808,12 +899,13 @@ def generate_anki_deck(questions_json_paths: Union[str, List[str]], output_path:
     media_files: List[str] = []
     notes_created = 0
     images_found = 0
+    question_images_found = 0
     
     for question in all_questions:
         # Skip questions with empty questions or answers
         if not question.get('question') or not question.get('answers'):
             continue
-            
+        
         note = create_anki_note(question, images_dir, media_files, model)
         deck.add_note(note)
         notes_created += 1
@@ -822,9 +914,13 @@ def generate_anki_deck(questions_json_paths: Union[str, List[str]], output_path:
             image_path = find_image_file(question['abbildung'], images_dir)
             if image_path:
                 images_found += 1
+        
+        if question.get('image_path'):
+            question_images_found += 1
     
     print(f"Created {notes_created} notes")
-    print(f"Found {images_found} images")
+    print(f"Found {images_found} abbildung images")
+    print(f"Found {question_images_found} question images")
     print(f"Total media files: {len(set(media_files))}")
     
     # Create package with media files
@@ -837,14 +933,16 @@ def generate_anki_deck(questions_json_paths: Union[str, List[str]], output_path:
     
     print(f"Successfully created Anki deck: {output_path}")
     print(f"Deck contains {notes_created} cards with {len(package.media_files)} media files")
+    print(f"- {images_found} abbildung images")
+    print(f"- {question_images_found} question images")
 
 def main():
     """Main function to generate the Anki deck."""
     current_dir = Path(__file__).parent.parent.parent  # Go up to project root
-    questions_file = current_dir / "output" / "questions.json"
+    questions_file = current_dir / "questions.json"  # Use questions.json from root with image_path
     additional_questions_file = current_dir / "output" / "extended_questions.json"
     images_dir = current_dir / "images"
-    output_file = current_dir / "output" / "paragliding_questions_with_ratings.apkg"
+    output_file = current_dir / "output" / "paragliding_questions_with_images.apkg"
     
     if not questions_file.exists():
         print(f"Error: Questions file not found: {questions_file}")

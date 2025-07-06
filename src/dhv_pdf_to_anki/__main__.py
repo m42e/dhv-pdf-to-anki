@@ -35,6 +35,7 @@ def parse_args():
     parser.add_argument("--questions-pdf", type=str, default="Lernstoff.pdf", help="Name of the PDF file containing questions.")
     parser.add_argument("--image-dir", type=str, default="images/", help="Directory to save extracted images.")
     parser.add_argument("--language", type=str, choices=["en", "de"], default="de", help="Language for Anki card interface text (en=English, de=German)")
+    parser.add_argument("--no-question-images", action="store_false", help="Disable extraction of question images. Only text questions will be processed.")
     # Add any future arguments here if needed
     return parser.parse_args()
 
@@ -106,7 +107,8 @@ def main() -> None:
         # Step 2: Extract questions from PDF
         print("\n2. Extracting questions from PDF...")
         print("-" * 40)
-        questions = extract_questions_from_pdf(pathlib.Path(args.pdf_path) / args.questions_pdf)
+        questions = extract_questions_from_pdf(pathlib.Path(args.pdf_path) / args.questions_pdf, save_images=args.no_question_images, images_dir=args.image_dir)
+        print(f"✓ Extracted {len(questions)} questions from PDF.", questions)
         
         # Save questions to JSON file
         questions_file = pathlib.Path(args.output_dir) / "questions.json"
@@ -139,6 +141,8 @@ def main() -> None:
         print("-" * 40)
         
         filename = args.anki_deck_name.replace(" ", "_").replace("/", "_") + ".apkg"
+        
+        print('question_files:', question_files)
 
         generate_anki_deck(question_files, pathlib.Path(args.output_dir) / filename, deckname=args.anki_deck_name, images_dir=args.image_dir, language=args.language)
         
@@ -148,8 +152,10 @@ def main() -> None:
         print("="*80)
         
     except Exception as e:
+        
         print(f"\n❌ Error in pipeline: {e}")
         print("Pipeline execution failed.")
+        raise
         sys.exit(1)
 
 

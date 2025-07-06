@@ -154,6 +154,26 @@ def call_mistral_api(prompt: str, api_key: Optional[str] = None) -> str:
             ]
         )
         
+        response_string = chat_response.choices[0].message.content
+        if response_string is None:
+            print("Warning: Mistral API returned None for response content.")
+            return ""
+        if isinstance(response_string, str):
+            return response_string.strip()
+        else:
+            # Handle ContentChunk - extract text from different chunk types
+            text_content = ""
+            for chunk in response_string:
+                match chunk.type:
+                    case "text":
+                        text_content += chunk.text
+                    case "document_url":
+                        if hasattr(chunk, 'document_name'):
+                            text_content += f"[Document: {chunk.document_name}]"
+                        else:
+                            text_content += "[Document URL: {chunk.document_url}]"
+            return text_content.strip()
+        
         return chat_response.choices[0].message.content.strip()
     
     except Exception as e:
@@ -210,7 +230,9 @@ Use German language and paragliding terminology. Answer in the exact JSON format
             "correct": ["A"],
             "abbildung": original_question.get('abbildung', ''),
             "section_id": original_question.get('section_id', ''),
-            "subsection_id": original_question.get('subsection_id', '')
+            "subsection_id": original_question.get('subsection_id', ''),
+            "page": original_question.get('page', ''),
+            "pdf_page_number": original_question.get('pdf_page_number', ''),
         }
     
     try:
@@ -260,7 +282,9 @@ Use German language and paragliding terminology. Answer in the exact JSON format
             "correct": ["A"],
             "abbildung": original_question.get('abbildung', ''),
             "section_id": original_question.get('section_id', ''),
-            "subsection_id": original_question.get('subsection_id', '')
+            "subsection_id": original_question.get('subsection_id', ''),
+            "page": original_question.get('page', ''),
+            "pdf_page_number": original_question.get('pdf_page_number', ''),
         }
 
 
