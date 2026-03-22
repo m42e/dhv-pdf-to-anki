@@ -8,6 +8,7 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
+    "flask>=3.1.2",
     "genanki>=0.13.1",
     "mistralai>=1.8.1",
     "pymupdf>=1.26.0",
@@ -16,6 +17,7 @@ dependencies = [
 
 [project.scripts]
 dhv-pdf-to-anki = "dhv_pdf_to_anki:main"
+dhv-pdf-to-anki-web = "dhv_pdf_to_anki.web:main"
 
 [build-system]
 requires = ["hatchling"]

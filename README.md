@@ -12,6 +12,7 @@ This tool extracts questions and images from DHV paragliding training PDFs and c
 - **Image Processing**: Extracts and processes images referenced in questions
 - **AI Enhancement**: Optional integration with Mistral AI to generate additional practice questions (split up questions regarding the gear into separate ones)
 - **Anki Deck Generation**: Creates ready-to-import Anki deck files (.apkg format)
+- **Web Interface**: Upload PDFs in the browser, generate a deck in a temporary workspace, and download it through a time-limited link
 - **Structured Learning**: Organizes questions by sections and subsections from the original material
 
 ## Prerequisites
@@ -91,6 +92,72 @@ This will:
 3. Generate extended questions (if Mistral AI key is available)
 4. Create an Anki deck at `output/DHV_Lernmaterial_Fragen.apkg`
 
+### Web Interface
+
+Start the local Flask app:
+
+```bash
+dhv-pdf-to-anki-web
+```
+
+The web server reads `HOST` and `PORT` from the environment. By default it runs on `127.0.0.1:5000`.
+Generated job artifacts are stored under `ARTIFACTS_DIR/<job_id>`. If `ARTIFACTS_DIR` is not set, the app falls back to a temporary system directory.
+
+Then open `http://127.0.0.1:5000` in your browser, upload:
+
+- `Lernstoff.pdf` as the questions PDF
+- `Bilder.pdf` as the images PDF
+
+The application will:
+
+1. Copy uploads into an isolated temporary folder
+2. Run the same extraction and deck-generation pipeline as the CLI
+3. Provide a download link for the generated `.apkg`
+4. Remove access to that result after 60 minutes
+
+### Docker
+
+Build the image:
+
+```bash
+docker build -t dhv-pdf-to-anki .
+```
+
+Run the web app in a container:
+
+```bash
+docker run --rm -p 5000:5000 \
+  -v "$PWD/artifacts:/artifacts" \
+  -e ARTIFACTS_DIR=/artifacts \
+  dhv-pdf-to-anki
+```
+
+Then open `http://127.0.0.1:5000` in your browser.
+
+If you want AI-enhanced question generation, pass the API key through:
+
+```bash
+docker run --rm -p 5000:5000 \
+  -v "$PWD/artifacts:/artifacts" \
+  -e ARTIFACTS_DIR=/artifacts \
+  -e MISTRAL_API_KEY=your-api-key-here \
+  dhv-pdf-to-anki
+```
+
+Run it with Docker Compose on `127.0.0.1:34209`:
+
+```bash
+docker compose up --build
+```
+
+Then open `http://127.0.0.1:34209` in your browser.
+
+If you want AI-enhanced question generation with Compose, add the environment variable before starting:
+
+```bash
+MISTRAL_API_KEY=your-api-key-here docker compose up --build
+```
+
 ### Command Line Options
 
 ```bash
@@ -98,13 +165,15 @@ dhv-pdf-to-anki [OPTIONS]
 ```
 
 | Option | Description | Default |
-|--------|-------------|---------|
+| ------ | ----------- | ------- |
 | `--pdf-path` | Path to directory containing PDF files | `pdf/` |
 | `--anki-deck-name` | Name of the generated Anki deck | `DHV Lernmaterial Fragen` |
 | `--output-dir` | Directory to save output files | `output/` |
 | `--image-pdf` | Name of the PDF file containing images | `Bilder.pdf` |
 | `--questions-pdf` | Name of the PDF file containing questions | `Lernstoff.pdf` |
 | `--image-dir` | Directory to save extracted images | `images/` |
+
+The web UI uses its own temporary directories and does not require these CLI paths.
 
 ### Example with Custom Options
 
